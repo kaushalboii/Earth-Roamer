@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ef4444"/>
+      <stop offset="100%" stop-color="#b91c1c"/>
+    </linearGradient>
+    <linearGradient id="boltGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fef08a"/>
+      <stop offset="100%" stop-color="#f59e0b"/>
+    </linearGradient>
+  </defs>
+  <!-- Superhero Diamond Shield -->
+  <polygon points="32,4 58,18 48,54 32,62 16,54 6,18" fill="url(#shieldGrad)" stroke="#fcd34d" stroke-width="3" stroke-linejoin="round"/>
+  <!-- Hypersonic Lightning Bolt -->
+  <polygon points="36,12 20,34 32,34 26,52 46,28 34,28" fill="url(#boltGrad)" stroke="#78350f" stroke-width="1.5" stroke-linejoin="round"/>
+</svg>
+

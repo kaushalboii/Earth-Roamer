@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script>window.CESIUM_BASE_URL = './cesium/';</script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Superhuman Earth // Mach 20 Flight Simulator</title>
+  <meta name="description" content="Earth-scale superhuman flying simulator at Mach 20 with real-world globe, realistic atmosphere, 3D tiles, and sonic booms." />
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- 3D Cesium Earth Canvas -->
+  <div id="cesiumContainer"></div>
+
+  <!-- Radial Speed Lines & Shockwave Canvas -->
+  <canvas id="vfxCanvas"></canvas>
+
+  <!-- Flight HUD and UI Modals Container -->
+  <div id="app"></div>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
