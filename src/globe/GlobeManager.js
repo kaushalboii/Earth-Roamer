@@ -64,6 +64,22 @@ export class GlobeManager {
 
     // Try to load World Terrain if Ion token exists or use default terrain
     this.loadTerrain();
+
+    // Load global OSM 3D buildings so skyscrapers, towers, and streets exist worldwide
+    this.loadBuildings();
+  }
+
+  async loadBuildings() {
+    try {
+      const buildings = await Cesium.createOsmBuildingsAsync({
+        defaultColor: Cesium.Color.fromCssColorString('#475569')
+      });
+      this.viewer.scene.primitives.add(buildings);
+      this.buildingsTileset = buildings;
+      console.log('Cesium OSM 3D Buildings loaded successfully!');
+    } catch (e) {
+      console.warn('3D Buildings note:', e.message);
+    }
   }
 
   async loadTerrain() {
@@ -80,6 +96,7 @@ export class GlobeManager {
 
   setupAtmosphere() {
     const scene = this.viewer.scene;
+    scene.screenSpaceCameraController.enableCollisionDetection = false;
     if (scene.skyAtmosphere) {
       scene.skyAtmosphere.show = true;
       scene.skyAtmosphere.hueShift = 0.0;
@@ -89,7 +106,7 @@ export class GlobeManager {
   }
 
   initHeroModel() {
-    const position = Cesium.Cartesian3.fromDegrees(-73.9857, 40.7484, 450);
+    const position = Cesium.Cartesian3.fromDegrees(-73.9857, 40.7484, 45);
     const heading = Cesium.Math.toRadians(45.0);
     const pitch = 0;
     const roll = 0;

@@ -3,12 +3,15 @@
 export class MiniMap {
   constructor(canvas) {
     this.canvas = canvas;
-    this.ctx = canvas.getContext('2d');
-    this.width = canvas.width;
-    this.height = canvas.height;
+    if (canvas) {
+      this.ctx = canvas.getContext('2d');
+      this.width = canvas.width;
+      this.height = canvas.height;
+    }
   }
 
   update(lon, lat, heading) {
+    if (!this.canvas || !this.ctx) return;
     const ctx = this.ctx;
     const w = this.width;
     const h = this.height;

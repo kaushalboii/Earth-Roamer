@@ -133,17 +133,9 @@ export class FlightControls {
         this.physics.setTargetSpeed(250); // Gliding Cruise
         break;
       case 'Digit3':
-        this.physics.setTargetSpeed(800); // Subsonic Roam
-        break;
-      case 'Digit4':
         this.physics.setTargetSpeed(1235); // Mach 1.0 (Sonic Boom!)
         break;
-      case 'Digit5':
-        this.physics.setTargetSpeed(6175); // Mach 5.0 (Hypersonic)
-        break;
-      case 'Digit6':
-        this.physics.setTargetSpeed(12350); // Mach 10.0
-        break;
+      case 'Digit4':
       case 'Digit0':
       case 'KeyM':
         this.physics.setTargetSpeed(24700); // MACH 20 GOD SPEED!

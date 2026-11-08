@@ -1,11 +1,10 @@
-import { SPEED_PRESETS, ATMOSPHERE_LAYERS } from '../config.js';
+import { SPEED_PRESETS } from '../config.js';
 
 export class HUD {
   constructor(container, options = {}) {
     this.container = container;
     this.options = options;
-    this.isVisible = true;
-    this.isZenMode = false;
+    this.isMuted = false;
 
     this.render();
     this.bindEvents();
@@ -13,462 +12,221 @@ export class HUD {
 
   render() {
     this.hudEl = document.createElement('div');
-    this.hudEl.className = 'hud-container';
+    this.hudEl.className = 'hud-simple-container';
     this.hudEl.id = 'flightHud';
 
     this.hudEl.innerHTML = `
-      <!-- TOP NAVIGATION & ZEN ROAMING BAR -->
-      <div class="hud-topbar interactive-ui">
-        <div class="hud-brand">
-          <span class="hero-crest">🕸️</span>
-          <div class="brand-text">
-            <h1>EARTH ROAMER</h1>
-            <span class="sub">HUMAN FREE-FLIGHT SIMULATOR</span>
+      <!-- TOP BAR: SPEED TELEMETRY & GEARS + UTILITY -->
+      <div class="hud-top-row">
+        <!-- 1. MAIN SPEED CAPSULE -->
+        <div class="speed-capsule interactive-ui">
+          <div class="speed-main-display">
+            <span class="speed-val" id="hudKmh">120</span>
+            <span class="speed-unit">KM/H</span>
+            <span class="mach-badge" id="hudMach">MACH 0.10</span>
+          </div>
+
+          <div class="speed-sub-row">
+            <span class="hud-stat" id="hudAlt">ALT: 45 M</span>
+            <span class="hud-stat-dot">•</span>
+            <span class="hud-stat" id="hudState">GLIDING</span>
+            <span class="hud-stat-dot">•</span>
+            <span class="hud-stat" id="hudLocation">MANHATTAN</span>
+          </div>
+
+          <div class="speed-gauge-track">
+            <div class="speed-gauge-fill" id="hudSpeedBar"></div>
+          </div>
+
+          <!-- QUICK SPEED PRESETS (4 Simple Gears) -->
+          <div class="speed-gears-row">
+            <button class="gear-btn active" data-kmh="30" title="Key [1]">1 • HOVER</button>
+            <button class="gear-btn" data-kmh="250" title="Key [2]">2 • CRUISE</button>
+            <button class="gear-btn" data-kmh="1235" title="Key [3]">3 • MACH 1</button>
+            <button class="gear-btn gear-mach20" data-kmh="24700" title="Key [4]">4 • MACH 20</button>
           </div>
         </div>
 
-        <!-- SPEED PRESET GEAR SELECTOR -->
-        <div class="mach-selector">
-          ${SPEED_PRESETS.map(p => `
-            <button class="mach-btn" data-kmh="${p.kmh}" title="${p.desc} [Key ${p.key}]">
-              <span class="key-badge">${p.key}</span>
-              <span class="mach-label">${p.label}</span>
-            </button>
-          `).join('')}
-        </div>
-
-        <!-- QUICK UTILITY CONTROLS -->
-        <div class="hud-actions">
-          <button class="hud-icon-btn highlight-btn" id="zenModeBtn" title="Toggle Zen Mode [Z]">
-            <span class="btn-icon">🌿</span>
-            <span class="btn-label" id="zenLabel">Zen Mode</span>
-          </button>
-          <button class="hud-icon-btn" id="photoModeBtn" title="Photo Mode / Camera Orbit">
-            <span class="btn-icon">📸</span>
-            <span class="btn-label">Photo</span>
-          </button>
-          <button class="hud-icon-btn" id="viewModeBtn" title="Switch View Mode [V]">
+        <!-- 2. QUICK UTILITY BUTTONS -->
+        <div class="quick-utilities interactive-ui">
+          <button class="util-btn" id="viewModeBtn" title="Switch 3rd / 1st Person [V]">
             <span class="btn-icon">👁️</span>
-            <span class="btn-label" id="viewModeLabel">3rd Person</span>
+            <span id="viewModeLabel">3rd Person</span>
           </button>
-          <button class="hud-icon-btn" id="timeCycleBtn" title="Toggle Time of Day [T]">
+          <button class="util-btn" id="timeCycleBtn" title="Cycle Time of Day [T]">
             <span class="btn-icon">🌅</span>
-            <span class="btn-label">Time</span>
+            <span>Time</span>
           </button>
-          <button class="hud-icon-btn" id="landmarkBtn" title="Landmarks Menu [L]">
-            <span class="btn-icon">🌍</span>
-            <span class="btn-label">Destinations</span>
-          </button>
-          <button class="hud-icon-btn" id="zenMusicBtn" title="Ambient Music Toggle">
-            <span class="btn-icon" id="zenMusicIcon">🎵</span>
-          </button>
-          <button class="hud-icon-btn" id="muteBtn" title="Mute Audio [U]">
+          <button class="util-btn" id="muteBtn" title="Mute Audio [U]">
             <span class="btn-icon" id="muteIcon">🔊</span>
           </button>
-          <button class="hud-icon-btn" id="settingsBtn" title="Settings">
+          <button class="util-btn" id="settingsBtn" title="Settings">
             <span class="btn-icon">⚙️</span>
           </button>
-          <button class="hud-icon-btn" id="helpBtn" title="Controls & Help [H]">
-            <span class="btn-icon">❓</span>
-          </button>
         </div>
       </div>
 
-      <!-- ZEN MINIMAL FLOATING BADGE (Visible in Zen Mode) -->
-      <div class="zen-minimal-badge" id="zenBadge" style="display: none;">
-        <span class="zen-speed" id="zenSpeedText">120 KM/H</span>
-        <span class="zen-dot">•</span>
-        <span class="zen-pose" id="zenPoseText">GLIDING</span>
-        <span class="zen-dot">•</span>
-        <span class="zen-alt" id="zenAltText">350 M</span>
-      </div>
-
-      <!-- BOTTOM INSTRUMENT CONSOLE -->
-      <div class="hud-bottom" id="hudBottomSection">
-        <!-- LEFT: TELEMETRY & HUMAN DYNAMICS -->
-        <div class="instrument-card telemetry-card">
-          <div class="mach-meter-wrapper">
-            <div class="mach-label-top">HUMAN AIRSPEED</div>
-            <div class="mach-big-display" id="hudMach">MACH 0.10</div>
-            <div class="mach-bar-track">
-              <div class="mach-bar-fill" id="hudMachBar"></div>
-            </div>
-          </div>
-
-          <div class="telemetry-grid">
-            <div class="telem-item">
-              <span class="telem-label">KM/H</span>
-              <span class="telem-val" id="hudKmh">120</span>
-            </div>
-            <div class="telem-item">
-              <span class="telem-label">MPH</span>
-              <span class="telem-val" id="hudMph">75</span>
-            </div>
-            <div class="telem-item">
-              <span class="telem-label">FLIGHT STATE</span>
-              <span class="telem-val highlight-state" id="hudPoseState">GLIDING</span>
-            </div>
-          </div>
-
-          <div class="altitude-section">
-            <div class="alt-header">
-              <span class="telem-label">ALTITUDE</span>
-              <span class="layer-badge" id="hudAtmosphereLayer">Troposphere</span>
-            </div>
-            <div class="alt-values">
-              <div class="alt-primary" id="hudAltPrimary">350 m</div>
-              <div class="alt-secondary" id="hudAltSecondary">1,148 ft</div>
-            </div>
-            <div class="vspeed-row">
-              <span class="telem-label">CLIMB RATE:</span>
-              <span class="vspeed-val" id="hudVspeed">0.0 m/s</span>
-            </div>
-          </div>
+      <!-- BOTTOM-LEFT: SIMPLE FLIGHT MOVES CARD -->
+      <div class="moves-card interactive-ui" id="movesCard">
+        <div class="moves-card-header">
+          <span class="moves-title">⚡ FLIGHT MOVES</span>
+          <button class="moves-toggle-btn" id="toggleMovesBtn" title="Minimize Controls">▾</button>
         </div>
-
-        <!-- CENTER: COMPASS TAPE & ATTITUDE INDICATOR -->
-        <div class="instrument-card navigation-card">
-          <div class="compass-tape-wrapper">
-            <div class="compass-tape-inner" id="hudCompassTape"></div>
-            <div class="compass-marker-center"></div>
+        <div class="moves-list" id="movesList">
+          <div class="move-item">
+            <span class="move-keys">A / D</span>
+            <span class="move-action">Turn Left & Right</span>
           </div>
-
-          <div class="attitude-indicator">
-            <div class="artificial-horizon" id="hudHorizon">
-              <div class="sky-half"></div>
-              <div class="ground-half"></div>
-              <div class="horizon-line"></div>
-              <div class="pitch-ladder" id="hudPitchLadder"></div>
-            </div>
-            <div class="aircraft-reticle">
-              <div class="reticle-center"></div>
-              <div class="reticle-wing left"></div>
-              <div class="reticle-wing right"></div>
-            </div>
+          <div class="move-item">
+            <span class="move-keys">W / S</span>
+            <span class="move-action">Dive & Climb Pitch</span>
           </div>
-
-          <div class="heading-readout" id="hudHeadingDeg">045° NE</div>
-        </div>
-
-        <!-- RIGHT: MINI-MAP & GLOBAL COORDINATES -->
-        <div class="instrument-card map-card">
-          <div class="minimap-header">
-            <span>EARTH EXPLORER</span>
-            <span class="coords-latlon" id="hudCoords">40.748° N, 73.985° W</span>
+          <div class="move-item">
+            <span class="move-keys">SPACE / C</span>
+            <span class="move-action">Fly Up / Down (Street Level)</span>
           </div>
-          <div class="minimap-container">
-            <canvas id="miniMapCanvas" width="220" height="110"></canvas>
+          <div class="move-item">
+            <span class="move-keys">SHIFT / X</span>
+            <span class="move-action">Hypersonic Boost / Brake</span>
           </div>
-          <div class="flight-status-row">
-            <span class="status-indicator"></span>
-            <span class="status-text" id="hudStatus">STRESS-FREE FREE ROAM</span>
+          <div class="move-item">
+            <span class="move-keys">1, 2, 3, 4</span>
+            <span class="move-action">Speed Gears (Hover to Mach 20)</span>
           </div>
-        </div>
-      </div>
-
-      <!-- KEYBINDINGS / HELP MODAL -->
-      <div class="modal-backdrop help-modal-backdrop" id="helpModal" style="display: none;">
-        <div class="modal-box help-modal-box">
-          <div class="modal-header">
-            <div class="modal-title">
-              <span class="icon">🕸️</span>
-              <h3>Stress-Free Human Flight Controls</h3>
-            </div>
-            <button class="modal-close-btn" id="closeHelpBtn">&times;</button>
-          </div>
-          <div class="modal-body">
-            <div class="controls-grid">
-              <div class="control-row highlight-row">
-                <span class="key-combo">W / S or Up / Down</span>
-                <span class="key-desc">Dive & Swoop! Diving builds kinetic speed, pulling up swoops high into the sky!</span>
-              </div>
-              <div class="control-row">
-                <span class="key-combo">A / D or Left / Right</span>
-                <span class="key-desc">Acrobatic Banking (Lean human body into aerodynamic turns)</span>
-              </div>
-              <div class="control-row">
-                <span class="key-combo">Space</span>
-                <span class="key-desc">Ascend Vertically (Rocket up to clouds, stratosphere, and space)</span>
-              </div>
-              <div class="control-row">
-                <span class="key-combo">C / Left Ctrl</span>
-                <span class="key-desc">Descend Vertically (Dive towards Earth's surface)</span>
-              </div>
-              <div class="control-row">
-                <span class="key-combo">Shift</span>
-                <span class="key-desc">Superhuman Boost Acceleration</span>
-              </div>
-              <div class="control-row">
-                <span class="key-combo">Z</span>
-                <span class="key-desc">Zen Mode (Hide clutter, enjoy pure breathtaking Earth roaming)</span>
-              </div>
-              <div class="control-row highlight-row">
-                <span class="key-combo">0 or M</span>
-                <span class="key-desc">MACH 20 GOD SPEED (24,700 km/h around the globe)</span>
-              </div>
-              <div class="control-row">
-                <span class="key-combo">V</span>
-                <span class="key-desc">Toggle View: 3rd-Person ⇋ 1st-Person Human Eyes ⇋ Free Orbit</span>
-              </div>
-              <div class="control-row">
-                <span class="key-combo">Mouse Drag</span>
-                <span class="key-desc">Effortless fluid steering (Aim where you want to fly)</span>
-              </div>
-              <div class="control-row">
-                <span class="key-combo">T</span>
-                <span class="key-desc">Time of Day (Dawn, Midday, Golden Sunset, Starry Night)</span>
-              </div>
-              <div class="control-row">
-                <span class="key-combo">L</span>
-                <span class="key-desc">Global Landmarks Menu (Warp to Everest, Paris, NYC, Dubai, Space)</span>
-              </div>
-              <div class="control-row">
-                <span class="key-combo">P</span>
-                <span class="key-desc">Peaceful Floating Hover in place</span>
-              </div>
-            </div>
+          <div class="move-item">
+            <span class="move-keys">V</span>
+            <span class="move-action">Toggle 3rd / 1st Person</span>
           </div>
         </div>
       </div>
     `;
 
     this.container.appendChild(this.hudEl);
-    this.initCompassTape();
-  }
-
-  initCompassTape() {
-    const tape = this.hudEl.querySelector('#hudCompassTape');
-    let html = '';
-    for (let deg = -180; deg <= 540; deg += 15) {
-      const normalized = ((deg % 360) + 360) % 360;
-      let label = normalized.toString();
-      if (normalized === 0) label = 'N';
-      else if (normalized === 45) label = 'NE';
-      else if (normalized === 90) label = 'E';
-      else if (normalized === 135) label = 'SE';
-      else if (normalized === 180) label = 'S';
-      else if (normalized === 225) label = 'SW';
-      else if (normalized === 270) label = 'W';
-      else if (normalized === 315) label = 'NW';
-
-      const isMajor = deg % 45 === 0;
-      html += `
-        <div class="compass-tick ${isMajor ? 'major' : ''}">
-          <span class="tick-label">${label}</span>
-          <div class="tick-line"></div>
-        </div>
-      `;
-    }
-    tape.innerHTML = html;
   }
 
   bindEvents() {
-    // Speed buttons
-    const btns = this.hudEl.querySelectorAll('.mach-btn');
-    btns.forEach(btn => {
+    // Quick Speed Gear Buttons
+    const gearBtns = this.hudEl.querySelectorAll('.gear-btn');
+    gearBtns.forEach(btn => {
       btn.addEventListener('click', () => {
+        gearBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
         const kmh = parseFloat(btn.getAttribute('data-kmh'));
         if (this.options.onSpeedSelect) this.options.onSpeedSelect(kmh);
       });
     });
 
-    // Zen Mode button
-    const zenBtn = this.hudEl.querySelector('#zenModeBtn');
-    zenBtn.addEventListener('click', () => this.toggleZenMode());
-
-    // Photo Mode button
-    const photoBtn = this.hudEl.querySelector('#photoModeBtn');
-    photoBtn.addEventListener('click', () => {
-      if (this.options.onPhotoMode) this.options.onPhotoMode();
-    });
-
-    // View mode button
+    // View Mode Button
     const viewBtn = this.hudEl.querySelector('#viewModeBtn');
     viewBtn.addEventListener('click', () => {
       if (this.options.onToggleView) this.options.onToggleView();
     });
 
-    // Time cycle button
+    // Time Cycle Button
     const timeBtn = this.hudEl.querySelector('#timeCycleBtn');
     timeBtn.addEventListener('click', () => {
       if (this.options.onCycleTime) this.options.onCycleTime();
     });
 
-    // Landmarks button
-    const lmBtn = this.hudEl.querySelector('#landmarkBtn');
-    lmBtn.addEventListener('click', () => {
-      if (this.options.onOpenLandmarks) this.options.onOpenLandmarks();
-    });
-
-    // Zen ambient music button
-    const zenMusicBtn = this.hudEl.querySelector('#zenMusicBtn');
-    zenMusicBtn.addEventListener('click', () => {
-      if (this.options.onToggleZenMusic) {
-        const active = this.options.onToggleZenMusic();
-        zenMusicBtn.querySelector('#zenMusicIcon').textContent = active ? '🎵' : '🔇';
-      }
-    });
-
-    // Mute button
+    // Mute Button
     const muteBtn = this.hudEl.querySelector('#muteBtn');
     muteBtn.addEventListener('click', () => {
       if (this.options.onToggleMute) this.options.onToggleMute();
     });
 
-    // Settings button
+    // Settings Button
     const settingsBtn = this.hudEl.querySelector('#settingsBtn');
     settingsBtn.addEventListener('click', () => {
       if (this.options.onOpenSettings) this.options.onOpenSettings();
     });
 
-    // Help button
-    const helpBtn = this.hudEl.querySelector('#helpBtn');
-    const helpModal = this.hudEl.querySelector('#helpModal');
-    const closeHelp = this.hudEl.querySelector('#closeHelpBtn');
-
-    helpBtn.addEventListener('click', () => {
-      helpModal.style.display = 'flex';
-    });
-    closeHelp.addEventListener('click', () => {
-      helpModal.style.display = 'none';
-    });
-    helpModal.addEventListener('click', (e) => {
-      if (e.target === helpModal) helpModal.style.display = 'none';
-    });
-  }
-
-  toggleZenMode() {
-    this.isZenMode = !this.isZenMode;
-    const bottom = this.hudEl.querySelector('#hudBottomSection');
-    const badge = this.hudEl.querySelector('#zenBadge');
-    const zenBtn = this.hudEl.querySelector('#zenModeBtn');
-
-    if (this.isZenMode) {
-      bottom.style.display = 'none';
-      badge.style.display = 'flex';
-      zenBtn.classList.add('active');
-    } else {
-      bottom.style.display = 'flex';
-      badge.style.display = 'none';
-      zenBtn.classList.remove('active');
-    }
-  }
-
-  update(physics, viewMode) {
-    // 1. Update Mach & Speed
-    const machEl = this.hudEl.querySelector('#hudMach');
-    const machBar = this.hudEl.querySelector('#hudMachBar');
-    const machVal = physics.currentMach.toFixed(2);
-    machEl.textContent = `MACH ${machVal}`;
-
-    const machRatio = Math.min(1.0, physics.currentMach / 20.0);
-    machBar.style.width = `${machRatio * 100}%`;
-
-    if (physics.currentMach >= 10.0) {
-      machEl.className = 'mach-big-display mach-godspeed';
-      machBar.className = 'mach-bar-fill mach-godspeed-bar';
-    } else if (physics.currentMach >= 5.0) {
-      machEl.className = 'mach-big-display mach-hypersonic';
-      machBar.className = 'mach-bar-fill mach-hypersonic-bar';
-    } else if (physics.currentMach >= 1.0) {
-      machEl.className = 'mach-big-display mach-supersonic';
-      machBar.className = 'mach-bar-fill mach-supersonic-bar';
-    } else {
-      machEl.className = 'mach-big-display';
-      machBar.className = 'mach-bar-fill';
-    }
-
-    const kmh = Math.round(physics.speed);
-    const mph = Math.round(physics.speed * 0.621371);
-    this.hudEl.querySelector('#hudKmh').textContent = kmh.toLocaleString();
-    this.hudEl.querySelector('#hudMph').textContent = mph.toLocaleString();
-
-    // Human flight posture
-    const poseState = this.hudEl.querySelector('#hudPoseState');
-    poseState.textContent = physics.pose.toUpperCase();
-
-    // Altitude
-    const altM = Math.round(physics.alt);
-    const altFt = Math.round(physics.alt * 3.28084);
-    if (altM >= 10000) {
-      this.hudEl.querySelector('#hudAltPrimary').textContent = `${(altM / 1000).toFixed(1)} km`;
-    } else {
-      this.hudEl.querySelector('#hudAltPrimary').textContent = `${altM.toLocaleString()} m`;
-    }
-    this.hudEl.querySelector('#hudAltSecondary').textContent = `${altFt.toLocaleString()} ft`;
-
-    // Atmospheric layer
-    let currentLayer = ATMOSPHERE_LAYERS[0];
-    for (const layer of ATMOSPHERE_LAYERS) {
-      if (physics.alt <= layer.maxAlt) {
-        currentLayer = layer;
-        break;
-      }
-    }
-    const layerBadge = this.hudEl.querySelector('#hudAtmosphereLayer');
-    layerBadge.textContent = currentLayer.name;
-    layerBadge.style.color = currentLayer.color;
-    layerBadge.style.borderColor = currentLayer.color;
-
-    // Vertical climb/dive rate
-    const vspeed = physics.verticalSpeed.toFixed(1);
-    const vspeedEl = this.hudEl.querySelector('#hudVspeed');
-    vspeedEl.textContent = `${vspeed > 0 ? '+' : ''}${vspeed} m/s`;
-    vspeedEl.style.color = vspeed > 0 ? '#4ade80' : vspeed < 0 ? '#f87171' : '#94a3b8';
-
-    // Compass
-    const heading = Math.round(physics.heading);
-    const compassInner = this.hudEl.querySelector('#hudCompassTape');
-    const pxPerDegree = 3.33;
-    compassInner.style.transform = `translateX(${-(heading * pxPerDegree)}px)`;
-
-    const headingCardinals = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-    const cardIdx = Math.round(heading / 45) % 8;
-    this.hudEl.querySelector('#hudHeadingDeg').textContent = `${heading.toString().padStart(3, '0')}° ${headingCardinals[cardIdx]}`;
-
-    // Horizon
-    const horizon = this.hudEl.querySelector('#hudHorizon');
-    const pitchPx = -physics.pitch * 2.5;
-    horizon.style.transform = `translateY(${pitchPx}px) rotate(${-physics.roll}deg)`;
-
-    // Coordinates
-    const latStr = `${Math.abs(physics.lat).toFixed(3)}° ${physics.lat >= 0 ? 'N' : 'S'}`;
-    const lonStr = `${Math.abs(physics.lon).toFixed(3)}° ${physics.lon >= 0 ? 'E' : 'W'}`;
-    this.hudEl.querySelector('#hudCoords').textContent = `${latStr}, ${lonStr}`;
-
-    // Zen badge update
-    if (this.isZenMode) {
-      this.hudEl.querySelector('#zenSpeedText').textContent = `${kmh.toLocaleString()} KM/H`;
-      this.hudEl.querySelector('#zenPoseText').textContent = physics.pose.toUpperCase();
-      this.hudEl.querySelector('#zenAltText').textContent = `${altM.toLocaleString()} M`;
-    }
-
-    // View Mode label
-    const viewLabel = this.hudEl.querySelector('#viewModeLabel');
-    if (viewMode === 'thirdPerson') viewLabel.textContent = '3rd Person';
-    else if (viewMode === 'firstPerson') viewLabel.textContent = '1st Person';
-    else viewLabel.textContent = 'Free Orbit';
-
-    // Highlight active preset button
-    const btns = this.hudEl.querySelectorAll('.mach-btn');
-    btns.forEach(btn => {
-      const bKmh = parseFloat(btn.getAttribute('data-kmh'));
-      if (Math.abs(physics.targetSpeed - bKmh) < 100) {
-        btn.classList.add('active');
+    // Moves Card Minimize / Expand
+    const toggleMoves = this.hudEl.querySelector('#toggleMovesBtn');
+    const movesList = this.hudEl.querySelector('#movesList');
+    toggleMoves.addEventListener('click', () => {
+      if (movesList.style.display === 'none') {
+        movesList.style.display = 'flex';
+        toggleMoves.textContent = '▾';
       } else {
-        btn.classList.remove('active');
+        movesList.style.display = 'none';
+        toggleMoves.textContent = '▸';
       }
     });
   }
 
   setMuteState(isMuted) {
+    this.isMuted = isMuted;
     const icon = this.hudEl.querySelector('#muteIcon');
-    icon.textContent = isMuted ? '🔇' : '🔊';
+    if (icon) icon.textContent = isMuted ? '🔇' : '🔊';
   }
 
-  toggleVisibility() {
-    this.isVisible = !this.isVisible;
-    this.hudEl.style.display = this.isVisible ? 'flex' : 'none';
-    return this.isVisible;
+  toggleZenMode() {
+    const movesCard = this.hudEl.querySelector('#movesCard');
+    if (movesCard) {
+      movesCard.style.display = movesCard.style.display === 'none' ? 'block' : 'none';
+    }
+  }
+
+  update(physics, viewMode) {
+    // Speed display
+    const kmh = Math.round(physics.speed);
+    const kmhEl = this.hudEl.querySelector('#hudKmh');
+    if (kmhEl) kmhEl.textContent = kmh.toLocaleString();
+
+    // Mach display
+    const machEl = this.hudEl.querySelector('#hudMach');
+    if (machEl) {
+      machEl.textContent = `MACH ${physics.currentMach.toFixed(2)}`;
+      if (physics.currentMach >= 10.0) {
+        machEl.className = 'mach-badge mach-plasma';
+      } else if (physics.currentMach >= 1.0) {
+        machEl.className = 'mach-badge mach-supersonic';
+      } else {
+        machEl.className = 'mach-badge';
+      }
+    }
+
+    // Altitude display
+    const altEl = this.hudEl.querySelector('#hudAlt');
+    if (altEl) {
+      const altM = Math.round(physics.alt);
+      if (altM < 100) {
+        altEl.textContent = `STREET ALT: ${altM} M`;
+      } else if (altM < 10000) {
+        altEl.textContent = `ALT: ${altM} M`;
+      } else {
+        altEl.textContent = `ORBIT: ${(altM / 1000).toFixed(1)} KM`;
+      }
+    }
+
+    // Pose / Flight state
+    const stateEl = this.hudEl.querySelector('#hudState');
+    if (stateEl) {
+      stateEl.textContent = physics.pose.toUpperCase();
+    }
+
+    // Speed gauge fill
+    const speedBar = this.hudEl.querySelector('#hudSpeedBar');
+    if (speedBar) {
+      const ratio = Math.min(1.0, physics.speed / 24700.0);
+      speedBar.style.width = `${Math.max(2, ratio * 100)}%`;
+      if (physics.speed > 5000) {
+        speedBar.style.background = 'linear-gradient(90deg, #0284c7, #f59e0b, #ef4444)';
+      } else if (physics.speed > 1200) {
+        speedBar.style.background = 'linear-gradient(90deg, #0284c7, #38bdf8)';
+      } else {
+        speedBar.style.background = '#38bdf8';
+      }
+    }
+
+    // View Mode Label
+    const viewLabel = this.hudEl.querySelector('#viewModeLabel');
+    if (viewLabel && viewMode) {
+      viewLabel.textContent = viewMode === 'firstPerson' ? '1st Person' : '3rd Person';
+    }
+  }
+
+  updateMiniMap() {
+    // Optional placeholder for compatibility
   }
 }

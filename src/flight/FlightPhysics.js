@@ -8,7 +8,7 @@ export class FlightPhysics {
     // Spatial coordinates (WGS84)
     this.lon = -73.9857; // Manhattan start
     this.lat = 40.7484;
-    this.alt = 350.0;    // meters
+    this.alt = 45.0;     // Starts right between skyscrapers at street-level height (meters)
 
     // Human Orientation (degrees)
     this.heading = 45.0; // 0 = North, 90 = East, 180 = South, 270 = West
@@ -27,11 +27,11 @@ export class FlightPhysics {
     this.currentMach = 0.10;
 
     // Human Maneuverability
-    this.turnAgility = 65.0;  // Fluid, quick human turn response
-    this.pitchAgility = 55.0; // Responsive dive/pull-up
+    this.turnAgility = 70.0;  // Fluid, quick human turn response
+    this.pitchAgility = 60.0; // Responsive dive/pull-up
 
-    // Stress-Free Ground Safety
-    this.minAltitude = 8.0;      // Skim just above street/water level
+    // Stress-Free Ground Safety: allows skimming right above roads and avenue level
+    this.minAltitude = 2.0;      // Skim just 2 meters above street level
     this.maxAltitude = 500000.0; // Up to 500 km (Low Earth Orbit)
 
     // Human State
@@ -129,39 +129,41 @@ export class FlightPhysics {
     this.currentMach = speedMs / soundSpeed;
 
     // 4. Acrobatic Banking and Turning
-    const turnSensitivity = Math.max(0.35, 1.0 - (this.speed / this.maxSpeed) * 0.65);
+    const turnSensitivity = Math.max(0.4, 1.0 - (this.speed / this.maxSpeed) * 0.5);
 
     if (controls.rollLeft) {
-      this.roll = Math.max(-55, this.roll - 95 * dt);
+      this.roll = Math.max(-55, this.roll - 110 * dt);
     } else if (controls.rollRight) {
-      this.roll = Math.min(55, this.roll + 95 * dt);
+      this.roll = Math.min(55, this.roll + 110 * dt);
     } else {
       // Auto-re-center human body roll gracefully
       this.roll *= Math.max(0, 1.0 - 5.0 * dt);
     }
 
-    // Coordinated banking turn
-    const bankTurn = -Math.sin((this.roll * Math.PI) / 180) * this.turnAgility * turnSensitivity;
+    // Coordinated banking turn:
+    // When banking Left (roll < 0), heading decreases (counter-clockwise -> turns LEFT).
+    // When banking Right (roll > 0), heading increases (clockwise -> turns RIGHT).
+    const bankTurn = Math.sin((this.roll * Math.PI) / 180) * this.turnAgility * turnSensitivity;
     this.heading = (this.heading + bankTurn * dt + 360) % 360;
 
     // Rudder / Quick turns (Q / E)
     if (controls.yawLeft) {
-      this.heading = (this.heading - 55 * turnSensitivity * dt + 360) % 360;
-      this.roll = Math.min(30, this.roll + 40 * dt);
+      this.heading = (this.heading - 60 * turnSensitivity * dt + 360) % 360;
+      this.roll = Math.max(-35, this.roll - 45 * dt);
     }
     if (controls.yawRight) {
-      this.heading = (this.heading + 55 * turnSensitivity * dt) % 360;
-      this.roll = Math.max(-30, this.roll - 40 * dt);
+      this.heading = (this.heading + 60 * turnSensitivity * dt) % 360;
+      this.roll = Math.min(35, this.roll + 45 * dt);
     }
 
     // Mouse steering
     if (controls.mouseDeltaX) {
-      this.heading = (this.heading + controls.mouseDeltaX * 0.16 + 360) % 360;
-      this.roll = Math.max(-45, Math.min(45, this.roll - controls.mouseDeltaX * 0.22));
+      this.heading = (this.heading + controls.mouseDeltaX * 0.20 + 360) % 360;
+      this.roll = Math.max(-45, Math.min(45, this.roll + controls.mouseDeltaX * 0.25));
       controls.mouseDeltaX = 0;
     }
     if (controls.mouseDeltaY) {
-      this.pitch = Math.max(-85, Math.min(85, this.pitch - controls.mouseDeltaY * 0.14));
+      this.pitch = Math.max(-85, Math.min(85, this.pitch - controls.mouseDeltaY * 0.16));
       controls.mouseDeltaY = 0;
     }
 
@@ -171,15 +173,15 @@ export class FlightPhysics {
 
     let extraZ = 0;
     if (controls.ascend) {
-      extraZ = Math.max(60, speedMs * 0.85 + 70);
+      extraZ = Math.max(50, speedMs * 0.85 + 60);
     }
     if (controls.descend) {
-      extraZ = -Math.max(60, speedMs * 0.85 + 70);
+      extraZ = -Math.max(50, speedMs * 0.85 + 60);
     }
 
     // Hover floating micro-oscillation (human breathing float when still)
     if (this.speed < 20) {
-      extraZ += Math.sin(this.hoverTimer * 2.2) * 1.2;
+      extraZ += Math.sin(this.hoverTimer * 2.2) * 0.8;
     }
 
     const horizSpeedMs = speedMs * Math.cos(pitchRad);
@@ -192,12 +194,10 @@ export class FlightPhysics {
     // Update Altitude
     this.alt += vz * dt;
 
-    // Stress-free ground skimming: softly cushion so you glide over terrain/water effortlessly
-    if (this.alt < 25.0) {
-      const cushionFactor = Math.max(0, (25.0 - this.alt) / 25.0);
+    // Street-level gliding: soft cushion near ground so you can fly 2m above roads without getting stuck
+    if (this.alt < 4.0) {
       if (this.pitch < 0) {
-        // Gently level pitch out as you skim rooftops or water
-        this.pitch *= (1.0 - cushionFactor * 3.0 * dt);
+        this.pitch *= Math.max(0, 1.0 - 4.0 * dt);
       }
       this.alt = Math.max(this.minAltitude, this.alt);
     }
